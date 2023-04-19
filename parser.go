@@ -20,6 +20,9 @@ const (
 	ClassDeclaration
 )
 
+// Parses a text containing Typescript or Javascript code into
+// a rudimentary AST. The root node of the returned tree represents
+// the full file processed.
 func Parse(fullText string) Node {
 	currentPosition := 0
 	nodes := []Node{}
@@ -51,6 +54,15 @@ func Parse(fullText string) Node {
 	return root
 }
 
+// From a text containing source code and a starting point,
+// determines the start and end of the next closure.
+//
+// In this case, we define a closure as a balanced set of
+// { } brackets such that we capture the body of blocks like
+//
+// function myFunction() {
+//   // ...Code
+// }
 func findClosureBoundaries(fullText string, start int) (int, int) {
 	stack := []rune{}
 	end := -1
@@ -72,12 +84,14 @@ func findClosureBoundaries(fullText string, start int) (int, int) {
 	return start, end
 }
 
-// Given the full text of a source file and a starting position
-// marking where a function declaration's signature starts, this
-// scans the characters that follow until it can find the full
-// closure of the function block.
+// Given the full text of a file or a fragment of a file, builds
+// a struct containing the start and end of the function declaration,
+// the full text (incl. body) and other metadata about the function block.
 //
-// The full function text is returned.
+// See `Node` for more details on how this works.
+//
+// The function returns a tuple containing the fully-formed node, if
+// possible, and a boolean representing whether a node was found or not.
 func maybeParseFunctionDeclaration(fullText string) (Node, bool) {
 	pattern := `function (?P<functionName>([a-zA-Z_][a-zA-Z0-9_]*))\(.*\)`
 	r, _ := regexp.Compile(pattern)
@@ -93,8 +107,17 @@ func maybeParseFunctionDeclaration(fullText string) (Node, bool) {
 	return Node{FunctionDeclaration, fullText[start : end+1], start, end + 1, []Node{}}, true
 }
 
+// Given the full text of a file or a fragment of a file, builds
+// a struct containing the start and end of the class declaration,
+// the full text (incl. body) and other metadata about the class block.
+//
+// See `Node` for more details on how this works.
+//
+// The function returns a tuple containing the fully-formed node, if
+// possible, and a boolean representing whether a node was found or not.
 func maybeParseClassDeclaration(fullText string) (Node, bool) {
 	pattern := `class [a-zA-Z_][a-zA-Z0-9_]* ?\{`
+
 	r, _ := regexp.Compile(pattern)
 
 	matches := r.FindStringSubmatchIndex(fullText)
