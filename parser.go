@@ -21,6 +21,15 @@ const (
 	ClassDeclaration
 )
 
+// Raw patterns used when searching for syntactic elements in source.
+var LeadingCommentPattern = `(\/\*(.|\s)*\*\/)\s*`
+var FunctionDeclarationCommentPattern = LeadingCommentPattern + `(?P<functionDeclaration>(function (?P<functionName>([a-zA-Z_][a-zA-Z0-9_]*))\(.*\)))`
+var ClassDeclarationPattern = LeadingCommentPattern + `(?P<classDeclaration>(class [a-zA-Z_][a-zA-Z0-9_]*))`
+
+// Compiled regexp patterns.
+var rFunctionDeclaration = regexp.MustCompile(FunctionDeclarationCommentPattern)
+var rClassDeclaration = regexp.MustCompile(ClassDeclarationPattern)
+
 // Parses a text containing Typescript or Javascript code into
 // a rudimentary AST. The root node of the returned tree represents
 // the full file processed.
@@ -100,9 +109,13 @@ func findBlockComments(fullText string) []string {
 	for position, character := range fullText {
 		if character == '*' && previousRune == '/' {
 			inComment = true
+			if end == -1 {
+				end = position - 1
+			}
 		} else if character == '/' && previousRune == '*' && inComment {
 			inComment = false
-			comments = append(comments, fullText[end+1:position+1])
+			comments = append(comments, fullText[end:position+1])
+			end = position + 1
 		}
 
 		previousRune = character
@@ -120,10 +133,7 @@ func findBlockComments(fullText string) []string {
 // The function returns a tuple containing the fully-formed node, if
 // possible, and a boolean representing whether a node was found or not.
 func maybeParseFunctionDeclaration(fullText string, offset int) (Node, bool) {
-	pattern := `(\/\*(.|\s)*\*\/)?\s?(?P<functionDeclaration>(function (?P<functionName>([a-zA-Z_][a-zA-Z0-9_]*))\(.*\)))`
-	r, _ := regexp.Compile(pattern)
-
-	matches := r.FindStringSubmatchIndex(fullText)
+	matches := rFunctionDeclaration.FindStringSubmatchIndex(fullText)
 
 	if len(matches) == 0 {
 		return Node{}, false
@@ -131,7 +141,7 @@ func maybeParseFunctionDeclaration(fullText string, offset int) (Node, bool) {
 
 	start, end := findClosureBoundaries(fullText, matches[0])
 
-	fnStart := r.SubexpIndex("functionDeclaration")
+	fnStart := rFunctionDeclaration.SubexpIndex("functionDeclaration")
 	leadingComments := findBlockComments(fullText[:matches[fnStart]+offset])
 	return Node{FunctionDeclaration, fullText[start : end+1], start + offset, end + 1 + offset, []Node{}, leadingComments}, true
 }
@@ -145,11 +155,7 @@ func maybeParseFunctionDeclaration(fullText string, offset int) (Node, bool) {
 // The function returns a tuple containing the fully-formed node, if
 // possible, and a boolean representing whether a node was found or not.
 func maybeParseClassDeclaration(fullText string, offset int) (Node, bool) {
-	pattern := `class [a-zA-Z_][a-zA-Z0-9_]* ?\{`
-
-	r, _ := regexp.Compile(pattern)
-
-	matches := r.FindStringSubmatchIndex(fullText)
+	matches := rClassDeclaration.FindStringSubmatchIndex(fullText)
 
 	if len(matches) == 0 {
 		return Node{}, false
@@ -157,5 +163,8 @@ func maybeParseClassDeclaration(fullText string, offset int) (Node, bool) {
 
 	start, end := findClosureBoundaries(fullText, matches[0])
 
-	return Node{ClassDeclaration, fullText[start : end+1], start + offset, end + 1 + offset, []Node{}, []string{}}, true
+	clsStart := rClassDeclaration.SubexpIndex("classDeclaration")
+	leadingComments := findBlockComments(fullText[:matches[clsStart]+offset])
+
+	return Node{ClassDeclaration, fullText[start : end+1], start + offset, end + 1 + offset, []Node{}, leadingComments}, true
 }
