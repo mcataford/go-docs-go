@@ -5,11 +5,12 @@ import (
 )
 
 type Node struct {
-	nodeType NodeType
-	raw      string
-	start    int
-	end      int
-	children []Node
+	nodeType        NodeType
+	raw             string
+	start           int
+	end             int
+	children        []Node
+	leadingComments []string
 }
 
 type NodeType int
@@ -27,10 +28,10 @@ func Parse(fullText string) Node {
 	currentPosition := 0
 	nodes := []Node{}
 
-	root := Node{Program, fullText, 0, len(fullText), []Node{}}
+	root := Node{Program, fullText, 0, len(fullText), []Node{}, []string{}}
 
 	for currentPosition < (len(fullText) - 1) {
-		node, ok := maybeParseFunctionDeclaration(fullText[currentPosition:])
+		node, ok := maybeParseFunctionDeclaration(fullText[currentPosition:], currentPosition)
 
 		if ok {
 			nodes = append(nodes, node)
@@ -38,7 +39,7 @@ func Parse(fullText string) Node {
 			continue
 		}
 
-		node, ok = maybeParseClassDeclaration(fullText[currentPosition:])
+		node, ok = maybeParseClassDeclaration(fullText[currentPosition:], currentPosition)
 
 		if ok {
 			nodes = append(nodes, node)
@@ -84,6 +85,32 @@ func findClosureBoundaries(fullText string, start int) (int, int) {
 	return start, end
 }
 
+// Extracts any block comments of the form /* ... */ from
+// the given text.
+//
+// This always returns an array of strings representing
+// the comments found, and always scans the full provided text.
+func findBlockComments(fullText string) []string {
+	comments := []string{}
+
+	inComment := false
+	previousRune := ' '
+	end := -1
+
+	for position, character := range fullText {
+		if character == '*' && previousRune == '/' {
+			inComment = true
+		} else if character == '/' && previousRune == '*' && inComment {
+			inComment = false
+			comments = append(comments, fullText[end+1:position+1])
+		}
+
+		previousRune = character
+	}
+
+	return comments
+}
+
 // Given the full text of a file or a fragment of a file, builds
 // a struct containing the start and end of the function declaration,
 // the full text (incl. body) and other metadata about the function block.
@@ -92,8 +119,8 @@ func findClosureBoundaries(fullText string, start int) (int, int) {
 //
 // The function returns a tuple containing the fully-formed node, if
 // possible, and a boolean representing whether a node was found or not.
-func maybeParseFunctionDeclaration(fullText string) (Node, bool) {
-	pattern := `function (?P<functionName>([a-zA-Z_][a-zA-Z0-9_]*))\(.*\)`
+func maybeParseFunctionDeclaration(fullText string, offset int) (Node, bool) {
+	pattern := `(\/\*(.|\s)*\*\/)?\s?(?P<functionDeclaration>(function (?P<functionName>([a-zA-Z_][a-zA-Z0-9_]*))\(.*\)))`
 	r, _ := regexp.Compile(pattern)
 
 	matches := r.FindStringSubmatchIndex(fullText)
@@ -104,7 +131,9 @@ func maybeParseFunctionDeclaration(fullText string) (Node, bool) {
 
 	start, end := findClosureBoundaries(fullText, matches[0])
 
-	return Node{FunctionDeclaration, fullText[start : end+1], start, end + 1, []Node{}}, true
+	fnStart := r.SubexpIndex("functionDeclaration")
+	leadingComments := findBlockComments(fullText[:matches[fnStart]+offset])
+	return Node{FunctionDeclaration, fullText[start : end+1], start + offset, end + 1 + offset, []Node{}, leadingComments}, true
 }
 
 // Given the full text of a file or a fragment of a file, builds
@@ -115,7 +144,7 @@ func maybeParseFunctionDeclaration(fullText string) (Node, bool) {
 //
 // The function returns a tuple containing the fully-formed node, if
 // possible, and a boolean representing whether a node was found or not.
-func maybeParseClassDeclaration(fullText string) (Node, bool) {
+func maybeParseClassDeclaration(fullText string, offset int) (Node, bool) {
 	pattern := `class [a-zA-Z_][a-zA-Z0-9_]* ?\{`
 
 	r, _ := regexp.Compile(pattern)
@@ -128,5 +157,5 @@ func maybeParseClassDeclaration(fullText string) (Node, bool) {
 
 	start, end := findClosureBoundaries(fullText, matches[0])
 
-	return Node{ClassDeclaration, fullText[start : end+1], start, end + 1, []Node{}}, true
+	return Node{ClassDeclaration, fullText[start : end+1], start + offset, end + 1 + offset, []Node{}, []string{}}, true
 }
