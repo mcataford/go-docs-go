@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 )
@@ -13,5 +12,5 @@ func main() {
 
 	source := Parse(fileContent)
 
-	fmt.Println(source)
+	Generate(source)
 }
