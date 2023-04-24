@@ -20,12 +20,14 @@ const (
 	Program NodeType = iota
 	FunctionDeclaration
 	ClassDeclaration
+	ClassMethod
 )
 
 // Raw patterns used when searching for syntactic elements in source.
 var LeadingCommentPattern = `(\/\*(.|\s)*\*\/)\s*`
 var FunctionDeclarationCommentPattern = LeadingCommentPattern + `(?P<functionDeclaration>(function (?P<functionName>([a-zA-Z_][a-zA-Z0-9_]*))\(.*\)))`
 var ClassDeclarationPattern = LeadingCommentPattern + `(?P<classDeclaration>(class (?P<className>([a-zA-Z_][a-zA-Z0-9_]*))))`
+var TypedArgumentPattern = `[a-zA-Z_][a-zA-Z0-9_]*\s*(:\s*[a-zA-Z_][a-zA-Z0-9_])?`
 
 // Compiled regexp patterns.
 var rFunctionDeclaration = regexp.MustCompile(FunctionDeclarationCommentPattern)
@@ -74,12 +76,17 @@ func Parse(fullText string) Node {
 // function myFunction() {
 //   // ...Code
 // }
-func findClosureBoundaries(fullText string, start int) (int, int) {
+func findClosureBoundaries(fullText string, scanStart int) (int, int) {
 	stack := []rune{}
 	end := -1
-	for position, character := range fullText[start:] {
+	start := -1
+
+	for position, character := range fullText[scanStart:] {
 		if character == '{' {
 			stack = append(stack, character)
+			if start == -1 {
+				start = position + scanStart
+			}
 			if end == -1 {
 				end = 0
 			}
@@ -87,7 +94,7 @@ func findClosureBoundaries(fullText string, start int) (int, int) {
 			stack = stack[:len(stack)-1]
 		}
 		if len(stack) == 0 && end != -1 {
-			end = position + start
+			end = position + scanStart
 			break
 		}
 	}
@@ -165,11 +172,43 @@ func maybeParseClassDeclaration(fullText string, offset int) (Node, bool) {
 		return Node{}, false
 	}
 
-	start, end := findClosureBoundaries(fullText, matches[0])
+	declarationStart := matches[0]
+	start, end := findClosureBoundaries(fullText, declarationStart)
 
 	clsStart := rClassDeclaration.SubexpIndex("classDeclaration")
 	clsName := m[rClassDeclaration.SubexpIndex("className")]
 	leadingComments := findBlockComments(fullText[:matches[clsStart]+offset])
 
-	return Node{ClassDeclaration, fullText[start : end+1], clsName, start + offset, end + 1 + offset, []Node{}, leadingComments}, true
+	children := parseClassBody(fullText[start : end+1])
+
+	return Node{ClassDeclaration, fullText[declarationStart : end+1], clsName, declarationStart + offset, end + 1 + offset, children, leadingComments}, true
+}
+
+// Parses a class body to extract children methods.
+//
+// The children method are returned as an array of Node structs.
+func parseClassBody(fullText string) []Node {
+	children := []Node{}
+	rClassMethod := regexp.MustCompile(`(?P<classMethod>([a-zA-Z_][a-zA-Z0-9_]*))\((` + TypedArgumentPattern + `\s*)*\)`)
+	indexMatches := rClassMethod.FindAllStringIndex(fullText, -1)
+	fullMatches := rClassMethod.FindAllStringSubmatch(fullText, -1)
+
+	classMethodNameIndex := rClassMethod.SubexpIndex("classMethod")
+
+	next := 0
+	for position, matchIndices := range indexMatches {
+		declarationStart := matchIndices[0]
+
+		methodName := fullMatches[position][classMethodNameIndex]
+
+		if declarationStart < next {
+			continue
+		}
+		_, end := findClosureBoundaries(fullText, declarationStart)
+		next = end
+
+		children = append(children, Node{ClassMethod, fullText[declarationStart : end+1], methodName, declarationStart, end + 1, []Node{}, []string{}})
+	}
+
+	return children
 }
