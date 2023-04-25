@@ -24,7 +24,7 @@ const (
 )
 
 // Raw patterns used when searching for syntactic elements in source.
-var LeadingCommentPattern = `(\/\*(.|\s)*\*\/)\s*`
+var LeadingCommentPattern = `(\/\*(.|\s)*\*\/)*\s*`
 var FunctionDeclarationCommentPattern = LeadingCommentPattern + `(?P<functionDeclaration>(function (?P<functionName>([a-zA-Z_][a-zA-Z0-9_]*))\(.*\)))`
 var ClassDeclarationPattern = LeadingCommentPattern + `(?P<classDeclaration>(class (?P<className>([a-zA-Z_][a-zA-Z0-9_]*))))`
 var TypedArgumentPattern = `[a-zA-Z_][a-zA-Z0-9_]*\s*(:\s*[a-zA-Z_][a-zA-Z0-9_])?`
@@ -32,6 +32,7 @@ var TypedArgumentPattern = `[a-zA-Z_][a-zA-Z0-9_]*\s*(:\s*[a-zA-Z_][a-zA-Z0-9_])
 // Compiled regexp patterns.
 var rFunctionDeclaration = regexp.MustCompile(FunctionDeclarationCommentPattern)
 var rClassDeclaration = regexp.MustCompile(ClassDeclarationPattern)
+var rClassMethod = regexp.MustCompile(LeadingCommentPattern + `(?P<classMethod>([a-zA-Z_][a-zA-Z0-9_]*))\((` + TypedArgumentPattern + `\s*)*\)`)
 
 // Parses a text containing Typescript or Javascript code into
 // a rudimentary AST. The root node of the returned tree represents
@@ -177,7 +178,7 @@ func maybeParseClassDeclaration(fullText string, offset int) (Node, bool) {
 	clsName := m[rClassDeclaration.SubexpIndex("className")]
 	leadingComments := findBlockComments(fullText[:matches[clsStart]+offset])
 
-	children := parseClassBody(fullText[start : end+1])
+	children := parseClassBody(fullText[start:end+1], offset)
 
 	return Node{ClassDeclaration, fullText[declarationStart : end+1], clsName, declarationStart + offset, end + 1 + offset, children, leadingComments}, true
 }
@@ -185,27 +186,32 @@ func maybeParseClassDeclaration(fullText string, offset int) (Node, bool) {
 // Parses a class body to extract children methods.
 //
 // The children method are returned as an array of Node structs.
-func parseClassBody(fullText string) []Node {
+func parseClassBody(fullText string, offset int) []Node {
 	children := []Node{}
-	rClassMethod := regexp.MustCompile(`(?P<classMethod>([a-zA-Z_][a-zA-Z0-9_]*))\((` + TypedArgumentPattern + `\s*)*\)`)
+
 	indexMatches := rClassMethod.FindAllStringIndex(fullText, -1)
 	fullMatches := rClassMethod.FindAllStringSubmatch(fullText, -1)
 
 	classMethodNameIndex := rClassMethod.SubexpIndex("classMethod")
 
-	next := 0
+	lastBlockEnd := 0
 	for position, matchIndices := range indexMatches {
 		declarationStart := matchIndices[0]
 
 		methodName := fullMatches[position][classMethodNameIndex]
 
-		if declarationStart < next {
+		// Depending on syntax, another block might have been
+		// identified as "method-like" within the last block.
+		// In this case, let's skip ahead since method cannot
+		// contain other methods.
+		if declarationStart < lastBlockEnd {
 			continue
 		}
-		_, end := findClosureBoundaries(fullText, declarationStart)
-		next = end
 
-		children = append(children, Node{ClassMethod, fullText[declarationStart : end+1], methodName, declarationStart, end + 1, []Node{}, []string{}})
+		_, end := findClosureBoundaries(fullText, declarationStart)
+		lastBlockEnd = end
+		leadingComments := findBlockComments(fullText[declarationStart:indexMatches[position][1]])
+		children = append(children, Node{ClassMethod, fullText[declarationStart : end+1], methodName, declarationStart, end + 1, []Node{}, leadingComments})
 	}
 
 	return children
