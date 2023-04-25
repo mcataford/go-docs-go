@@ -77,13 +77,11 @@ func Parse(fullText string) Node {
 //   // ...Code
 // }
 func findClosureBoundaries(fullText string, scanStart int) (int, int) {
-	stack := []rune{}
-	end := -1
-	start := -1
+	depth, start, end := 0, -1, -1
 
 	for position, character := range fullText[scanStart:] {
 		if character == '{' {
-			stack = append(stack, character)
+			depth = depth + 1
 			if start == -1 {
 				start = position + scanStart
 			}
@@ -91,9 +89,9 @@ func findClosureBoundaries(fullText string, scanStart int) (int, int) {
 				end = 0
 			}
 		} else if character == '}' {
-			stack = stack[:len(stack)-1]
+			depth = depth - 1
 		}
-		if len(stack) == 0 && end != -1 {
+		if depth == 0 && end != -1 {
 			end = position + scanStart
 			break
 		}
