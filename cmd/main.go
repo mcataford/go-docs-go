@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	generator "github.com/mcataford/docs/internal/generator"
+	parser "github.com/mcataford/docs/internal/parser"
 	"io/ioutil"
 	"log"
 	"os"
@@ -102,9 +104,9 @@ func main() {
 		readBytes, _ := ioutil.ReadFile(sourceFile)
 		fileContent := string(readBytes)
 
-		source := Parse(fileContent, sourceFile)
+		source := parser.Parse(fileContent, sourceFile)
 
-		generated_markup := GenerateMarkdown(source)
+		generated_markup := generator.GenerateMarkdown(source)
 
 		baseName := path.Base(sourceFile)
 		targetPath := fmt.Sprintf("%s/%s.md", outputDirectory, baseName)
