@@ -10,7 +10,7 @@ func main() {
 	readBytes, _ := ioutil.ReadFile(target)
 	fileContent := string(readBytes)
 
-	source := Parse(fileContent)
+	source := Parse(fileContent, target)
 
 	generated_markup := GenerateMarkdown(source)
 

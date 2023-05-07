@@ -37,11 +37,11 @@ var rClassMethod = regexp.MustCompile(LeadingCommentPattern + `(?P<classMethod>(
 // Parses a text containing Typescript or Javascript code into
 // a rudimentary AST. The root node of the returned tree represents
 // the full file processed.
-func Parse(fullText string) Node {
+func Parse(fullText string, filename string) Node {
 	currentPosition := 0
 	nodes := []Node{}
 
-	root := Node{Program, fullText, "", 0, len(fullText), []Node{}, []string{}}
+	root := Node{Program, fullText, filename, 0, len(fullText), []Node{}, []string{}}
 
 	for currentPosition < (len(fullText) - 1) {
 		node, ok := maybeParseFunctionDeclaration(fullText[currentPosition:], currentPosition)

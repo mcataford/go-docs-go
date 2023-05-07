@@ -8,7 +8,7 @@ import (
 
 func TestParseEmptyFile(t *testing.T) {
 	fullText := ""
-	ast := Parse(fullText)
+	ast := Parse(fullText, "")
 
 	children_count := len(ast.children)
 
@@ -31,7 +31,7 @@ func TestParseClassLeadingComments(t *testing.T) {
         // Logic.
     }`
 
-	ast := Parse(fullText)
+	ast := Parse(fullText, "")
 	classDeclarationNode := ast.children[0]
 
 	if classDeclarationNode.nodeType != ClassDeclaration {
@@ -64,7 +64,7 @@ func TestParseClassMethodLeadingComments(t *testing.T) {
         }
     }`
 
-	ast := Parse(fullText)
+	ast := Parse(fullText, "")
 	classDeclarationNode := ast.children[0]
 
 	uncommentedMethod := classDeclarationNode.children[0]

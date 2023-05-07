@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"strings"
 )
 
@@ -10,6 +9,8 @@ type ForEachChild func(Node)
 
 var Traverse func(Node, ForEachChild)
 
+// Generates a Markdown document from the provided
+// ast.
 func GenerateMarkdown(ast Node) string {
 	Traverse = func(ast Node, fn ForEachChild) {
 		fn(ast)
@@ -19,7 +20,7 @@ func GenerateMarkdown(ast Node) string {
 		}
 	}
 
-	document := []string{"# API Documentation"}
+	document := []string{fmt.Sprintf("# %s", ast.identifier)}
 
 	forEachChild := func(node Node) {
 		leadingComment := ""
@@ -31,9 +32,9 @@ func GenerateMarkdown(ast Node) string {
 		document = append(document, ([]string{"### " + node.identifier, leadingComment})...)
 	}
 
-	log.Println(fmt.Sprintf("%+v", ast))
-
-	Traverse(ast, forEachChild)
+	for _, child := range ast.children {
+		Traverse(child, forEachChild)
+	}
 
 	return strings.Join(document, "\n")
 }
