@@ -1,17 +1,17 @@
-package main
+package parser
 
 import (
 	"regexp"
 )
 
 type Node struct {
-	nodeType        NodeType
-	raw             string
-	identifier      string
-	start           int
-	end             int
-	children        []Node
-	leadingComments []string
+	NodeType        NodeType
+	Raw             string
+	Identifier      string
+	Start           int
+	End             int
+	Children        []Node
+	LeadingComments []string
 }
 
 type NodeType int
@@ -48,7 +48,7 @@ func Parse(fullText string, filename string) Node {
 
 		if ok {
 			nodes = append(nodes, node)
-			currentPosition = node.end + 1
+			currentPosition = node.End + 1
 			continue
 		}
 
@@ -56,14 +56,14 @@ func Parse(fullText string, filename string) Node {
 
 		if ok {
 			nodes = append(nodes, node)
-			currentPosition = node.end + 1
+			currentPosition = node.End + 1
 			continue
 		}
 
 		break
 	}
 
-	root.children = nodes
+	root.Children = nodes
 
 	return root
 }
