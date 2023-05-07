@@ -27,7 +27,7 @@ func TestMarkdownGeneratorProducesMarkdownForClass(t *testing.T) {
 	markdown := GenerateMarkdown(ast)
 
 	expectedMarkdown := `# sample.ts
-### MyClass
+## MyClass
 /* Leading Comment */
 ### method
 /* Method Leading Comment */`
