@@ -83,8 +83,6 @@ func parseArgs(args []string) Args {
 func main() {
 	args := parseArgs(os.Args[1:])
 
-	log.Println(fmt.Sprintf("Processing %d files...", len(args.source)))
-
 	outputDirectory := "docs"
 
 	if args.outputDir != "" {
@@ -94,8 +92,10 @@ func main() {
 	err := os.Mkdir(outputDirectory, 0750)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Target directory %s already exists.", outputDirectory)
 	}
+
+	log.Println(fmt.Sprintf("Processing %d files...", len(args.source)))
 
 	for _, sourceFile := range args.source {
 		log.Println(fmt.Sprintf("Processing %s", sourceFile))
@@ -112,7 +112,7 @@ func main() {
 		defer file.Close()
 
 		if err != nil {
-			return
+			log.Printf("Failed to write %s: %s\n", targetPath, err)
 		}
 
 		file.WriteString(generated_markup)
