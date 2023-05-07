@@ -176,7 +176,12 @@ func maybeParseClassDeclaration(fullText string, offset int) (Node, bool) {
 
 	clsStart := rClassDeclaration.SubexpIndex("classDeclaration")
 	clsName := m[rClassDeclaration.SubexpIndex("className")]
-	leadingComments := findBlockComments(fullText[:matches[clsStart]+offset])
+
+	leadingComments := []string{}
+
+	if matches[clsStart] != -1 {
+		leadingComments = findBlockComments(fullText[:matches[clsStart]+offset])
+	}
 
 	children := parseClassBody(fullText[start:end+1], offset)
 
@@ -188,7 +193,6 @@ func maybeParseClassDeclaration(fullText string, offset int) (Node, bool) {
 // The children method are returned as an array of Node structs.
 func parseClassBody(fullText string, offset int) []Node {
 	children := []Node{}
-
 	indexMatches := rClassMethod.FindAllStringIndex(fullText, -1)
 	fullMatches := rClassMethod.FindAllStringSubmatch(fullText, -1)
 
