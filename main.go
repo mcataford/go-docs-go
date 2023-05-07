@@ -12,5 +12,13 @@ func main() {
 
 	source := Parse(fileContent)
 
-	Generate(source)
+	generated_markup := GenerateMarkdown(source)
+
+	file, err := os.Create("API.md")
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	file.WriteString(generated_markup)
 }

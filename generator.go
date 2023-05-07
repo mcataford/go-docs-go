@@ -1,7 +1,8 @@
 package main
 
 import (
-	"os"
+	"fmt"
+	"log"
 	"strings"
 )
 
@@ -9,7 +10,7 @@ type ForEachChild func(Node)
 
 var Traverse func(Node, ForEachChild)
 
-func Generate(ast Node) {
+func GenerateMarkdown(ast Node) string {
 	Traverse = func(ast Node, fn ForEachChild) {
 		fn(ast)
 
@@ -30,13 +31,9 @@ func Generate(ast Node) {
 		document = append(document, ([]string{"### " + node.identifier, leadingComment})...)
 	}
 
+	log.Println(fmt.Sprintf("%+v", ast))
+
 	Traverse(ast, forEachChild)
 
-	file, err := os.Create("API.md")
-	if err != nil {
-		return
-	}
-	defer file.Close()
-
-	file.WriteString(strings.Join(document, "\n"))
+	return strings.Join(document, "\n")
 }
