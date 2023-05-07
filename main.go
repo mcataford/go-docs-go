@@ -77,7 +77,7 @@ func parseArgs(args []string) Args {
 		}
 	}
 
-	return Args{unmatched, parsedArgs["outDir"]}
+	return Args{unmatched, parsedArgs["outputDir"]}
 }
 
 func main() {
@@ -85,23 +85,29 @@ func main() {
 
 	log.Println(fmt.Sprintf("Processing %d files...", len(args.source)))
 
+	outputDirectory := "docs"
+
+	if args.outputDir != "" {
+		outputDirectory = args.outputDir
+	}
+
+	err := os.Mkdir(outputDirectory, 0750)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	for _, sourceFile := range args.source {
 		log.Println(fmt.Sprintf("Processing %s", sourceFile))
 		readBytes, _ := ioutil.ReadFile(sourceFile)
 		fileContent := string(readBytes)
-
-		err := os.Mkdir("docs", 0750)
-
-		if err != nil {
-			log.Fatal(err)
-		}
 
 		source := Parse(fileContent, sourceFile)
 
 		generated_markup := GenerateMarkdown(source)
 
 		baseName := path.Base(sourceFile)
-		targetPath := fmt.Sprintf("%s/%s.md", "docs", baseName)
+		targetPath := fmt.Sprintf("%s/%s.md", outputDirectory, baseName)
 		file, err := os.Create(targetPath)
 		defer file.Close()
 
