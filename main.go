@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 )
@@ -11,7 +10,15 @@ func main() {
 	readBytes, _ := ioutil.ReadFile(target)
 	fileContent := string(readBytes)
 
-	source := Parse(fileContent)
+	source := Parse(fileContent, target)
 
-	fmt.Println(source)
+	generated_markup := GenerateMarkdown(source)
+
+	file, err := os.Create("API.md")
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	file.WriteString(generated_markup)
 }

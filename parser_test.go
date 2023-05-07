@@ -8,7 +8,7 @@ import (
 
 func TestParseEmptyFile(t *testing.T) {
 	fullText := ""
-	ast := Parse(fullText)
+	ast := Parse(fullText, "")
 
 	children_count := len(ast.children)
 
@@ -31,7 +31,7 @@ func TestParseClassLeadingComments(t *testing.T) {
         // Logic.
     }`
 
-	ast := Parse(fullText)
+	ast := Parse(fullText, "")
 	classDeclarationNode := ast.children[0]
 
 	if classDeclarationNode.nodeType != ClassDeclaration {
@@ -48,4 +48,44 @@ func TestParseClassLeadingComments(t *testing.T) {
 		t.Errorf("Didn't find the leading comments expected: %q != %q", classDeclarationNode.leadingComments, leadingComments)
 	}
 
+}
+
+func TestParseClassMethodLeadingComments(t *testing.T) {
+	fullText := `class MyClass {
+        myMethod() {
+            // wo.
+        }
+
+        /*
+        * Comment
+        */
+        myCommentedMethod() {
+            // wo.
+        }
+    }`
+
+	ast := Parse(fullText, "")
+	classDeclarationNode := ast.children[0]
+
+	uncommentedMethod := classDeclarationNode.children[0]
+
+	if len(uncommentedMethod.leadingComments) != 0 {
+		t.Errorf("Unexpected leading comment on method that does not have one.")
+	}
+
+	commentedMethod := classDeclarationNode.children[1]
+
+	if len(commentedMethod.leadingComments) != 1 {
+		t.Errorf("Expected comment on method but found none.")
+	}
+
+	leadingComment := commentedMethod.leadingComments[0]
+
+	expectedComment := `/*
+        * Comment
+        */`
+
+	if leadingComment != expectedComment {
+		t.Errorf("Comment does not match expectation (%q != %q)", leadingComment, expectedComment)
+	}
 }
